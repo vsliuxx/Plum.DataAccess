@@ -1,14 +1,13 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25123.0
-MinimumVisualStudioVersion = 10.0.40219.1
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vic.Data.DataAccess", "Vic.Data.DataAccess\Vic.Data.DataAccess.csproj", "{E42D6950-CF8C-432F-B1F0-ADFEACED5788}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestDemo", "TestDemo\TestDemo.csproj", "{C95A6DC3-7FD4-4444-9969-84E25F56078D}"
 EndProject
 Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "WebTestDemo", "WebTestDemo\", "{5459C430-46C2-423C-8723-AD2519B69DCC}"
 	ProjectSection(WebsiteProperties) = preProject
+		Frontpage = "false"
 		TargetFrameworkMoniker = ".NETFramework,Version%3Dv4.0"
 		ProjectReferences = "{E42D6950-CF8C-432F-B1F0-ADFEACED5788}|Vic.Data.DataAccess.dll;"
 		Debug.AspNetCompiler.VirtualPath = "/WebTestDemo"
@@ -26,7 +25,6 @@ Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "WebTestDemo", "WebTestDemo\
 		Release.AspNetCompiler.FixedNames = "false"
 		Release.AspNetCompiler.Debug = "False"
 		VWDPort = "49541"
-		SlnRelativePath = "WebTestDemo\"
 		StartServerOnDebug = "false"
 	EndProjectSection
 EndProject

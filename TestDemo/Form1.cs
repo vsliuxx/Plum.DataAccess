@@ -230,12 +230,23 @@ namespace TestDemo
             //cuDt.Rows[0].Delete();
 
             //dataAccess.Update(cuDt, "select * from class_info");
+             
             #endregion
         }
 
         private void button3_Click(object sender, EventArgs e)
         {
-
+            Vic.Data.DataAccess dbAccess = new Vic.Data.DataAccess("Data Source=ora24;User ID=test;Password=test;", Vic.Data.DbProviderType.OracleManaged);
+            List<Product> lstProduct = dbAccess.Query<Product>("select * from product");
+            this.dataGridView1.DataSource = lstProduct;
         }
+    }
+
+    public class Product
+    {
+        public Decimal ProductId { get; set; }
+        public string Name { get; set; }
+        public Decimal CategoryId { get; set; }
+        public DateTime CreateDate { get; set; }
     }
 }

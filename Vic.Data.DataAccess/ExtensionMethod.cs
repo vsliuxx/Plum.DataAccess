@@ -5,6 +5,7 @@ using System.Text;
 using System.Data;
 using System.Reflection.Emit;
 using System.Reflection;
+using System.Linq.Expressions;
 
 namespace Vic.Data
 {
@@ -19,12 +20,12 @@ namespace Vic.Data
         public static List<TResult> ToList<TResult>(this DataTable dt) where TResult : class, new()
         {
             List<TResult> list = new List<TResult>();
-            if (dt == null) 
+            if (dt == null)
                 return list;
             DataTableEntityBuilder<TResult> eblist = DataTableEntityBuilder<TResult>.CreateBuilder(dt.Rows[0]);
-            foreach (DataRow info in dt.Rows) 
+            foreach (DataRow info in dt.Rows)
                 list.Add(eblist.Build(info));
-            dt.Dispose(); 
+            dt.Dispose();
             dt = null;
             return list;
         }
@@ -73,5 +74,164 @@ namespace Vic.Data
                 return dynamicBuilder;
             }
         }
+
+        /// <summary>
+        /// 利用表达式树将IDataReader转换成泛型
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="reader"></param>
+        /// <returns></returns>
+        public static List<T> ToList<T>(this IDataReader reader) where T : class,new()
+        {
+            // 定义返回结果
+            List<T> result = new List<T>();
+
+            // 获取所有字段
+            var properties = typeof(T).GetProperties().ToList();
+            // 定义字典
+            Dictionary<int, DataColumn> columnDics = new Dictionary<int, DataColumn>();
+            //表达式字典委托   
+            Dictionary<int, Action<T, IDataReader>> actionDics = new Dictionary<int, Action<T, IDataReader>>();
+            //生成表头  
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                DataColumn col = new DataColumn()
+                {
+                    ColumnName = reader.GetName(i),
+                    DataType = reader.GetFieldType(i),
+                    Namespace = reader.GetDataTypeName(i)
+                };
+                //添加列  
+                columnDics.Add(i, col);
+
+                if (!properties.Exists(p => p.Name.ToUpper() == col.ColumnName))
+                {
+                    continue;
+                }
+
+                //获取字典值  
+                actionDics.Add(i, SetValueToEntity<T>(i, col.ColumnName, col.DataType));
+            }
+
+            //查询读取项  
+            while (reader.Read())
+            {
+                T objT = new T();
+
+                //添加到集合  
+                result.Add(objT);
+
+                //填充属性值  
+                foreach (var item in actionDics)
+                {
+                    //判断字段是否为null  
+                    if (!reader.IsDBNull(item.Key))
+                    {
+                        //设置属性值  
+                        item.Value(objT, reader);
+                    }
+                    else
+                    {
+                        //null处理  
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>  
+        /// 获取指定索引的数据并且返回调用委托  
+        /// </summary>  
+        /// <typeparam name="T">实体类类型</typeparam>  
+        /// <typeparam name="T1">结果类型</typeparam>  
+        /// <param name="index">当前对应在DataReader中的索引</param>  
+        /// <param name="ProPertyName">对应实体类属性名</param>  
+        /// <param name="FieldType">字段类型</param>  
+        /// <returns>返回通过调用的委托</returns>  
+        private static Action<T, IDataRecord> SetValueToEntity<T>(int index, string ProPertyName, Type FieldType)
+        {
+            Type datareader = typeof(IDataRecord);
+            var Mdthods = datareader.GetMethods().Where(p => p.ReturnType == FieldType && p.Name.StartsWith("Get") && p.GetParameters().Where(n => n.ParameterType == typeof(int)).Count() == 1);
+            //获取调用方法  
+            System.Reflection.MethodInfo Method = null;
+            if (Mdthods.Count() > 0)
+            {
+                Method = Mdthods.FirstOrDefault();
+            }
+            else
+            {
+                throw new EntryPointNotFoundException("没有从DataReader找到合适的取值方法");
+            }
+            ParameterExpression e = Expression.Parameter(typeof(T), "e");
+            ParameterExpression r = Expression.Parameter(datareader, "r");
+            //常数表达式  
+            ConstantExpression i = Expression.Constant(index);
+            MemberExpression ep = Expression.PropertyOrField(e, ProPertyName);
+            MethodCallExpression call = Expression.Call(r, Method, i);
+
+
+
+            //instance.Property = value 这句话是重点  
+            BinaryExpression assignExpression = Expression.Assign(ep, call);
+            var ex = Expression.Lambda(assignExpression, e, r);
+
+            Expression<Action<T, IDataRecord>> resultEx = Expression.Lambda<Action<T, IDataRecord>>(assignExpression, e, r);
+            Action<T, IDataRecord> result = resultEx.Compile();
+
+            return result;
+        }
+
+        ///<summary>  
+        ///利用反射和泛型将SqlDataReader转换成List模型  
+        ///</summary>  
+        ///<param name="sql">查询sql语句</param>  
+        ///<returns></returns>  
+        public static IList<T> ExecuteToList<T>(IDataReader reader, string sql) where T : new()
+        {
+            IList<T> list;
+
+            Type type = typeof(T);
+
+            string columnName = string.Empty;
+
+
+            list = new List<T>();
+            while (reader.Read())
+            {
+                T t = new T();
+
+                PropertyInfo[] propertys = t.GetType().GetProperties();
+
+                foreach (PropertyInfo pi in propertys)
+                {
+                    columnName = pi.Name;
+
+                    DataView dv = reader.GetSchemaTable().DefaultView;
+                    dv.RowFilter = "ColumnName= '" + columnName + "'"; 
+
+                    if (dv.Count> 0)
+                    {
+                        if (!pi.CanWrite)
+                        {
+                            continue;
+                        }
+                        var value = reader[columnName];
+
+                        if (value != DBNull.Value)
+                        {
+                            pi.SetValue(t, value, null);
+                        }
+
+                    }
+
+                }
+
+                list.Add(t);
+
+            }
+            return list;
+        } 
+
     }
 }

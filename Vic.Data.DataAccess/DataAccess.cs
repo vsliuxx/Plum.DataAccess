@@ -469,6 +469,48 @@ namespace Vic.Data
         }
 
         /// <summary>
+        /// 执行查询语句，返回泛型
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="sql"></param>
+        /// <returns></returns>
+        public List<T> Query<T>(string sql) where T : class,new()
+        {
+            // 定义返回参数
+            List<T> lstResult = null;
+
+            try
+            {
+                // 定义数据库连接
+                using (DbConnection conn = CreateConnection())
+                {
+                    // 定义数据库命令对象
+                    using (DbCommand cmd = conn.CreateCommand())
+                    {
+                        // 设置命令类型
+                        cmd.CommandType = CommandType.Text;
+                        // 设置查询语句
+                        cmd.CommandText = sql;
+                        // 打开连接
+                        cmd.Connection.Open();
+
+                        // 定义数据库Reader对象
+                        DbDataReader reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
+                        // 由DataReader生成泛型实体
+                        lstResult = reader.ToList<T>();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Query方法执行错误!" + ex.Message, ex);
+            }
+
+            return lstResult;
+        }
+
+
+        /// <summary>
         /// 执行查询语句
         /// </summary>
         /// <param name="sql">查询语句</param>

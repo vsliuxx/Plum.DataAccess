@@ -71,8 +71,7 @@ ORDER BY pxm";
 
             
             //DataAccess2 d = new DataAccess2();
-
-
+             
         }
 
         public DataTable QueryTable(string sql)
@@ -80,10 +79,9 @@ ORDER BY pxm";
             DataTable dt = new DataTable();
             return dt;
         }
-
-        
-        
+          
     }
+     
 
     public class mod_t
     {
