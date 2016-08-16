@@ -236,7 +236,9 @@ namespace TestDemo
 
         private void button3_Click(object sender, EventArgs e)
         {
-            Vic.Data.DataAccess dbAccess = new Vic.Data.DataAccess("Data Source=ora24;User ID=test;Password=test;", Vic.Data.DbProviderType.OracleManaged);
+            string conn = ConfigurationManager.ConnectionStrings["oracle"].ConnectionString;
+            string prname = ConfigurationManager.ConnectionStrings["oracle"].ProviderName;
+            Vic.Data.DataAccess dbAccess = new Vic.Data.DataAccess(conn,prname);
             List<Product> lstProduct = dbAccess.Query<Product>("select * from product");
             this.dataGridView1.DataSource = lstProduct;
         }
