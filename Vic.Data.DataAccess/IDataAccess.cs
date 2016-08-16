@@ -126,6 +126,30 @@ namespace Vic.Data
         int ExecuteNonQuery(string sql);
 
         /// <summary>
+        /// 执行查询返回实体集合
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="sql"></param>
+        /// <returns></returns>
+        List<T> Query<T>(string sql) where T : class, new();
+
+        /// <summary>
+        /// 执行无返回数据集的SQL，返回受影响的行数。 
+        /// </summary>
+        /// <param name="sql">SQL语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>Int</returns>
+        int ExecuteNonQuery(string sql, params DbParameter[] parameters);
+
+        /// <summary>
+        /// 执行无返回数据集的SQL，返回受影响的行数。 
+        /// </summary>
+        /// <param name="sql">SQL语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>Int</returns>
+        int ExecuteNonQuery(string sql, IList<DbParameter> parameters);
+
+        /// <summary>
         /// 执行多条SQL语句，实现数据库事务。
         /// </summary>
         /// <param name="commits">指定执行多少条SQL后提交一次，小于或等于0为不指定即执行所有SQL后再提交。</param>
@@ -134,11 +158,43 @@ namespace Vic.Data
         void ExecuteSqlTran(int commits, params string[] sqls);
 
         /// <summary>
+        /// 执行多条SQL语句(带 DbParameter 参数)，实现数据库事务。
+        /// </summary>
+        /// <param name="commits">指定执行多少条SQL后提交一次，小于或等于0为不指定即执行所有SQL后再提交。</param>
+        /// <param name="sqls">SQL语句</param>
+        /// <returns></returns>
+        void ExecuteSqlTran(int commits, params DbSQL[] sqls);
+
+        /// <summary>
+        /// 执行多条SQL语句(带 DbParameter 参数)，实现数据库事务。
+        /// </summary>
+        /// <param name="commits">指定执行多少条SQL后提交一次，小于或等于0为不指定即执行所有SQL后再提交。</param>
+        /// <param name="sqls">SQL语句</param>
+        /// <returns></returns>
+        void ExecuteSqlTran(int commits, IList<DbSQL> sqls);
+
+        /// <summary>
         /// 执行查询语句
         /// </summary>
-        /// <param name="sqls">查询语句</param>
+        /// <param name="sql">查询语句</param>
         /// <returns>DataSet</returns>
         DataSet Query(string sql);
+
+        /// <summary>
+        /// 执行查询语句
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataSet</returns>
+        DataSet Query(string sql, params DbParameter[] parameters);
+
+        /// <summary>
+        /// 执行查询语句
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataSet</returns>
+        DataSet Query(string sql, IList<DbParameter> parameters);
 
         /// <summary>
         /// 执行查询语句
@@ -148,11 +204,41 @@ namespace Vic.Data
         DataSet Query(params string[] sqls);
 
         /// <summary>
+        /// 执行查询语句(带 DbParameter 参数)
+        /// </summary>
+        /// <param name="sqls">查询语句</param>
+        /// <returns></returns>
+        DataSet Query(params DbSQL[] sqls);
+
+        /// <summary>
+        /// 执行查询语句(带 DbParameter 参数)
+        /// </summary>
+        /// <param name="sqls">查询语句</param>
+        /// <returns></returns>
+        DataSet Query(IList<DbSQL> sqls);
+
+        /// <summary>
         /// 执行查询语句
         /// </summary>
         /// <param name="sql">查询语句</param>
         /// <returns>DataTable</returns>
         DataTable QueryTable(string sql);
+
+        /// <summary>
+        /// 执行查询语句
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataTable</returns>
+        DataTable QueryTable(string sql, params DbParameter[] parameters);
+
+        /// <summary>
+        /// 执行查询语句
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataTable</returns>
+        DataTable QueryTable(string sql, IList<DbParameter> parameters);
 
         /// <summary>
         /// 执行查询语句，返回DataReader，用完后要调用DbDataReader的Close()方法关闭实例
@@ -162,6 +248,22 @@ namespace Vic.Data
         DbDataReader QueryReader(string sql);
 
         /// <summary>
+        /// 执行查询语句，返回DataReader，用完后要调用DbDataReader的Close()方法关闭实例
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DbDataReader</returns>
+        DbDataReader QueryReader(string sql, params DbParameter[] parameters);
+
+        /// <summary>
+        /// 执行查询语句，返回DataReader，用完后要调用DbDataReader的Close()方法关闭实例
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DbDataReader</returns>
+        DbDataReader QueryReader(string sql, IList<DbParameter> parameters);
+
+        /// <summary>
         /// 执行分页查询
         /// </summary>
         /// <param name="sql">查询语句</param>
@@ -169,6 +271,26 @@ namespace Vic.Data
         /// <param name="currPageIndex">当前页索引</param>
         /// <returns>DataTable</returns>
         DataTable QueryPage(string sql, int pageSize, int currPageIndex);
+
+        /// <summary>
+        /// 执行分页查询
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="pageSize">分页大小</param>
+        /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataTable</returns>
+        DataTable QueryPage(string sql, int pageSize, int currPageIndex, params DbParameter[] parameters);
+
+        /// <summary>
+        /// 执行分页查询
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="pageSize">分页大小</param>
+        /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataTable</returns>
+        DataTable QueryPage(string sql, int pageSize, int currPageIndex, IList<DbParameter> parameters);
 
         /// <summary>
         /// 执行存储过程
@@ -181,7 +303,15 @@ namespace Vic.Data
         /// 执行存储过程,带参数
         /// </summary>
         /// <param name="storedProcName">存储过程名称</param>
-        /// <param name="parameters">DbParameter 参数</param>
+        /// <param name="parameters">存储过程的 DbParameter 类型参数</param>
+        /// <returns></returns>
+        DataSet ExecProcedure(string storedProcName, params DbParameter[] parameters);
+
+        /// <summary>
+        /// 执行存储过程,带参数
+        /// </summary>
+        /// <param name="storedProcName">存储过程名称</param>
+        /// <param name="parameters">存储过程的 DbParameter 类型参数</param>
         /// <returns></returns>
         DataSet ExecProcedure(string storedProcName, IList<DbParameter> parameters);
 
@@ -191,16 +321,25 @@ namespace Vic.Data
         /// <param name="storedProcName">存储过程名称</param>
         /// <param name="tableNames">表名</param>
         /// <returns>DataSet</returns>
-        DataSet ExecProcedure(string storedProcName, params string[] tableNames);
+        DataSet ExecProcedure(string storedProcName, string[] tableNames);
 
         /// <summary>
-        /// 执行存储过程,带参数,并返回指定表数据集
+        /// 执行存储过程(带 DbParameter 参数),并返回指定表数据集
         /// </summary>
         /// <param name="storedProcName">存储过程名称</param>
-        /// <param name="parameters">DbParameter 参数</param>
+        /// <param name="parameters">存储过程的 DbParameter 类型参数</param>
         /// <param name="tableNames">表名</param>
         /// <returns>DataSet</returns>
-        DataSet ExecProcedure(string storedProcName, IList<DbParameter> parameters, params string[] tableNames);
+        DataSet ExecProcedure(string storedProcName, DbParameter[] parameters, string[] tableNames);
+
+        /// <summary>
+        /// 执行存储过程(带 DbParameter 参数),并返回指定表数据集
+        /// </summary>
+        /// <param name="storedProcName">存储过程名称</param>
+        /// <param name="parameters">存储过程的 DbParameter 类型参数</param>
+        /// <param name="tableNames">表名</param>
+        /// <returns>DataSet</returns>
+        DataSet ExecProcedure(string storedProcName, IList<DbParameter> parameters, string[] tableNames);
 
         /// <summary>
         /// 更新数据库
@@ -213,17 +352,67 @@ namespace Vic.Data
         /// <summary>
         /// 更新数据库
         /// </summary>
-        /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
-        /// <param name="sql">每个Table对应的SQL，必须包含主键列。</param>
+        /// <param name="dataTable">DataTable，必须设置主键。</param>
+        /// <param name="sql">Table对应的SQL，必须包含主键列。</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
         /// <returns></returns>
-        void Update(DataSet dataSet, params string[] sql);
+        void Update(DataTable dataTable, string sql, params DbParameter[] parameters);
+
+        /// <summary>
+        /// 更新数据库
+        /// </summary>
+        /// <param name="dataTable">DataTable，必须设置主键。</param>
+        /// <param name="sql">Table对应的SQL，必须包含主键列。</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns></returns>
+        void Update(DataTable dataTable, string sql, IList<DbParameter> parameters);
+
+        /// <summary>
+        /// 更新数据库
+        /// </summary>
+        /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
+        /// <returns></returns>
+        void Update(DataSet dataSet, params string[] sqls);
+
+        /// <summary>
+        /// 更新数据库(带 DbParameter 参数)
+        /// </summary>
+        /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
+        /// <returns></returns>
+        void Update(DataSet dataSet, params DbSQL[] sqls);
+
+        /// <summary>
+        /// 更新数据库(带 DbParameter 参数)
+        /// </summary>
+        /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
+        /// <returns></returns>
+        void Update(DataSet dataSet, IList<DbSQL> sqls);
 
         /// <summary>
         /// 更新数据库(事务)
         /// </summary>
         /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
-        /// <param name="sql">每个Table对应的SQL，必须包含主键列。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
         /// <returns></returns>
-        void UpdateTran(DataSet dataSet, params string[] sql);
+        void UpdateTran(DataSet dataSet, params string[] sqls);
+
+        /// <summary>
+        /// 更新数据库(事务,带 DbParameter 参数)
+        /// </summary>
+        /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
+        /// <returns></returns>
+        void UpdateTran(DataSet dataSet, params DbSQL[] sqls);
+
+        /// <summary>
+        /// 更新数据库(事务,带 DbParameter 参数)
+        /// </summary>
+        /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
+        /// <returns></returns>
+        void UpdateTran(DataSet dataSet, IList<DbSQL> sqls);
     }
 }

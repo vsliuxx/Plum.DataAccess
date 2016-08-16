@@ -8,6 +8,7 @@ namespace Vic.Data
     /// <summary>
     /// 通用数据库访问公共类
     /// </summary>
+    [Serializable]
     public class DataAccessComm
     {
         /// <summary>
@@ -75,6 +76,7 @@ namespace Vic.Data
     /// <summary>
     /// 数据库类型
     /// </summary>
+    [Serializable]
     public enum DbProviderType : byte
     {
         /// <summary>
@@ -139,62 +141,31 @@ namespace Vic.Data
         SQLiteLinq = 11
     }
 
+    /// <summary>
+    /// SQL字符串带参数
+    /// </summary>
     [Serializable]
-    public class ProviderTypeNoneException : Exception
+    public struct DbSQL
     {
-        private string dbProviderName = "";
+        /// <summary>
+        /// SQL字符串
+        /// </summary>
+        public string SQLString;
 
-        //public ProviderTypeNoneException()
-        //    : base()//调用基类的构造器
-        //{
-        //}
+        /// <summary>
+        /// SQL字符串中对应的 DbParameter 参数
+        /// </summary>
+        public System.Data.Common.DbParameter[] DbParameters;
 
-        //public ProviderTypeNoneException(string message)
-        //    : base(message)//调用基类的构造器
-        //{
-        //}
-
-        //public ProviderTypeNoneException(string message, Exception innerException)
-        //    : base(message, innerException)//调用基类的构造器
-        //{
-        //}
-
-        public ProviderTypeNoneException(string dbProviderName)
-            : base()//调用基类的构造器
+        /// <summary>
+        /// 带DbParameters参数的SQL实例
+        /// </summary>
+        /// <param name="sqlString"></param>
+        /// <param name="dbParameters"></param>
+        public DbSQL(string sqlString, params System.Data.Common.DbParameter[] dbParameters)
         {
-            this.dbProviderName = dbProviderName;
-        }
-
-        public ProviderTypeNoneException(string dbProviderName, string message)
-            : base(message)//调用基类的构造器
-        {
-            this.dbProviderName = dbProviderName;
-        }
-
-        public ProviderTypeNoneException(string dbProviderName, string message, Exception innerException)
-            : base(message, innerException)//调用基类的构造器
-        {
-            this.dbProviderName = dbProviderName;
-        }
-
-        public override string Message
-        {
-            get
-            {
-                StringBuilder explain = new StringBuilder();
-                explain.AppendFormat(@"原因：一般性问题，说明没有找到相关驱动""{0}""。" + Environment.NewLine, dbProviderName);
-                explain.AppendFormat(@"解决方法：以Oracle.DataAccess.Client.dll驱动为例" + Environment.NewLine);
-                explain.AppendFormat(@"步骤1：app.config或Web.config文件中可能需要添加如下节点，同时需要注意Version。" + Environment.NewLine);
-                explain.AppendFormat(@"<system.data>" + Environment.NewLine);
-                explain.AppendFormat(@"  <DbProviderFactories>" + Environment.NewLine);
-                explain.AppendFormat(@"    <add name=""Oracle Data Provider for .NET"" invariant=""Oracle.DataAccess.Client"" description=""Oracle Data Provider for .NET"" type=""Oracle.DataAccess.Client.OracleClientFactory, Oracle.DataAccess, Version=2.111.6.20, Culture=neutral, PublicKeyToken=89b483f429c47342""/>" + Environment.NewLine);
-                explain.AppendFormat(@"  </DbProviderFactories>" + Environment.NewLine);
-                explain.AppendFormat(@"</system.data>" + Environment.NewLine);
-                explain.AppendFormat(@"步骤2：注册相关驱动DLL到GAC（如果步骤1有效可以忽略该操作）。" + Environment.NewLine);
-                explain.AppendFormat(@"(1)查看GAC：gacutil.exe /l Oracle.DataAccess" + Environment.NewLine);
-                explain.AppendFormat(@"(2)注册GAC：gacutil.exe /i Oracle.DataAccess.dll" + Environment.NewLine);
-                return base.Message + Environment.NewLine + explain.ToString();
-            }
+            this.SQLString = sqlString;
+            this.DbParameters = dbParameters;
         }
     }
 }

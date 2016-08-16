@@ -11,6 +11,7 @@ namespace Vic.Data
     /// <summary>
     /// 通用数据库访问类
     /// </summary>
+    [Serializable]
     public class DataAccess : MarshalByRefObject, IDataAccess, IDisposable
     {
         private Dictionary<string, object> parms;
@@ -62,14 +63,6 @@ namespace Vic.Data
         {
             get { return this.isDisposed; }
         }
-
-        /// <summary>
-        /// 通用数据库访问类
-        /// </summary>
-        //public DataAccess()
-        //{
-
-        //}
 
         /// <summary>
         /// 通用数据库访问类。
@@ -306,6 +299,31 @@ namespace Vic.Data
         /// <returns>Int</returns>  
         public int ExecuteNonQuery(string sql)
         {
+            return ExecuteNonQuery(sql, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行无返回数据集的SQL，返回受影响的行数。 
+        /// </summary>
+        /// <param name="sql">SQL语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>Int</returns>
+        public int ExecuteNonQuery(string sql, params DbParameter[] parameters)
+        {
+            if (parameters != null)
+                return ExecuteNonQuery(sql, parameters.ToList());
+            else
+                return ExecuteNonQuery(sql, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行无返回数据集的SQL，返回受影响的行数。 
+        /// </summary>
+        /// <param name="sql">SQL语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>Int</returns>
+        public int ExecuteNonQuery(string sql, IList<DbParameter> parameters)
+        {
             int result = 0;
             using (DbConnection conn = CreateConnection())
             {
@@ -316,6 +334,13 @@ namespace Vic.Data
                     cmd = CreateCommand(conn);
                     cmd.CommandType = CommandType.Text;
                     cmd.CommandText = sql;
+                    if (parameters != null && parameters.Count > 0)
+                    {
+                        foreach (DbParameter para in parameters)
+                        {
+                            cmd.Parameters.Add(para);
+                        }
+                    }
                     result = cmd.ExecuteNonQuery();
                 }
                 catch (DbException dbEx)
@@ -386,11 +411,151 @@ namespace Vic.Data
         }
 
         /// <summary>
+        /// 执行多条SQL语句(带 DbParameter 参数)，实现数据库事务。
+        /// </summary>
+        /// <param name="commits">指定执行多少条SQL后提交一次，小于或等于0为不指定即执行所有SQL后再提交。</param>
+        /// <param name="sqls">SQL语句</param>
+        /// <returns></returns>
+        public void ExecuteSqlTran(int commits, params DbSQL[] sqls)
+        {
+            ExecuteSqlTran(commits, sqls.ToList());
+        }
+
+        /// <summary>
+        /// 执行多条SQL语句(带 DbParameter 参数)，实现数据库事务。
+        /// </summary>
+        /// <param name="commits">指定执行多少条SQL后提交一次，小于或等于0为不指定即执行所有SQL后再提交。</param>
+        /// <param name="sqls">SQL语句</param>
+        /// <returns></returns>
+        public void ExecuteSqlTran(int commits, IList<DbSQL> sqls)
+        {
+            using (DbConnection conn = CreateConnection())
+            {
+                DbCommand cmd = null;
+                DbTransaction trans = null;
+                try
+                {
+                    conn.Open();
+                    cmd = CreateCommand(conn);
+                    trans = conn.BeginTransaction();
+                    cmd.Transaction = trans;
+                    cmd.CommandType = CommandType.Text;
+                    for (int i = 0; i < sqls.Count; i++)
+                    {
+                        DbSQL sql = sqls[i];
+                        string strSql = sql.SQLString;
+                        if (strSql.Trim().Length > 1)
+                        {
+                            cmd.CommandText = strSql;
+                            if (sql.DbParameters != null && sql.DbParameters.Length > 0)
+                            {
+                                foreach (DbParameter para in sql.DbParameters)
+                                {
+                                    cmd.Parameters.Add(para);
+                                }
+                            }
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        //如果commits > 0 ，则按该数设定的值进行一次提交操作，i+1 是因为当i=0时是第一条记录。
+                        if (commits > 0 && (i + 1) % commits == 0)
+                        {
+                            trans.Commit();
+                            trans = conn.BeginTransaction();
+                            cmd.Transaction = trans;
+                        }
+                    }
+                    trans.Commit();
+                }
+                catch (DbException dbEx)
+                {
+                    if (trans != null)
+                        trans.Rollback();
+                    throw dbEx;
+                }
+                finally
+                {
+                    if (cmd != null)
+                        cmd.Dispose();
+                    if (trans != null)
+                        trans.Dispose();
+                }
+            }
+        }
+		
+        /// <summary>
+        /// 执行查询语句，返回泛型
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="sql"></param>
+        /// <returns></returns>
+        public List<T> Query<T>(string sql) where T : class,new()
+        {
+            // 定义返回参数
+            List<T> lstResult = null;
+
+            try
+            {
+                // 定义数据库连接
+                using (DbConnection conn = CreateConnection())
+                {
+                    // 定义数据库命令对象
+                    using (DbCommand cmd = conn.CreateCommand())
+                    {
+                        // 设置命令类型
+                        cmd.CommandType = CommandType.Text;
+                        // 设置查询语句
+                        cmd.CommandText = sql;
+                        // 打开连接
+                        cmd.Connection.Open();
+
+                        // 定义数据库Reader对象
+                        DbDataReader reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
+                        // 由DataReader生成泛型实体
+                        lstResult = reader.ToList<T>();
+                        //lstResult = reader.ToListByEmit<T>();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Query方法执行错误!" + ex.Message, ex);
+            }
+
+            return lstResult;
+        }
+		
+        /// <summary>
         /// 执行查询语句
         /// </summary>
         /// <param name="sql">查询语句</param>
         /// <returns>DataSet</returns>
         public DataSet Query(string sql)
+        {
+            return Query(sql, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行查询语句
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataSet</returns>
+        public DataSet Query(string sql, params DbParameter[] parameters)
+        {
+            if (parameters != null)
+                return Query(sql, parameters.ToList());
+            else
+                return Query(sql, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行查询语句
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataSet</returns>
+        public DataSet Query(string sql, IList<DbParameter> parameters)
         {
             DataSet result = new DataSet();
             using (DbConnection conn = CreateConnection())
@@ -404,6 +569,13 @@ namespace Vic.Data
                     adp = CreateDataAdapter();
                     cmd.CommandType = CommandType.Text;
                     cmd.CommandText = sql;
+                    if (parameters != null && parameters.Count > 0)
+                    {
+                        foreach (DbParameter para in parameters)
+                        {
+                            cmd.Parameters.Add(para);
+                        }
+                    }
                     adp.SelectCommand = cmd;
                     adp.Fill(result);
                 }
@@ -469,46 +641,67 @@ namespace Vic.Data
         }
 
         /// <summary>
-        /// 执行查询语句，返回泛型
+        /// 执行查询语句(带 DbParameter 参数)
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="sql"></param>
+        /// <param name="sqls">查询语句</param>
         /// <returns></returns>
-        public List<T> Query<T>(string sql) where T : class,new()
+        public DataSet Query(params DbSQL[] sqls)
         {
-            // 定义返回参数
-            List<T> lstResult = null;
-
-            try
-            {
-                // 定义数据库连接
-                using (DbConnection conn = CreateConnection())
-                {
-                    // 定义数据库命令对象
-                    using (DbCommand cmd = conn.CreateCommand())
-                    {
-                        // 设置命令类型
-                        cmd.CommandType = CommandType.Text;
-                        // 设置查询语句
-                        cmd.CommandText = sql;
-                        // 打开连接
-                        cmd.Connection.Open();
-
-                        // 定义数据库Reader对象
-                        DbDataReader reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
-                        // 由DataReader生成泛型实体
-                        lstResult = reader.ToList<T>();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Query方法执行错误!" + ex.Message, ex);
-            }
-
-            return lstResult;
+            return Query(sqls.ToList());
         }
 
+        /// <summary>
+        /// 执行查询语句(带 DbParameter 参数)
+        /// </summary>
+        /// <param name="sqls">查询语句</param>
+        /// <returns></returns>
+        public DataSet Query(IList<DbSQL> sqls)
+        {
+            DataSet result = new DataSet();
+            using (DbConnection conn = CreateConnection())
+            {
+                DbCommand cmd = null;
+                DbDataAdapter adp = null;
+                try
+                {
+                    conn.Open();
+                    cmd = CreateCommand(conn);
+                    adp = CreateDataAdapter();
+                    cmd.CommandType = CommandType.Text;
+                    for (int i = 0; i < sqls.Count; i++)
+                    {
+                        DbSQL sql = sqls[i];
+                        string strSql = sql.SQLString;
+                        if (strSql.Trim().Length > 1)
+                        {
+                            cmd.CommandText = strSql;
+                            if (sql.DbParameters != null && sql.DbParameters.Length > 0)
+                            {
+                                foreach (DbParameter para in sql.DbParameters)
+                                {
+                                    cmd.Parameters.Add(para);
+                                }
+                            }
+                            adp.SelectCommand = cmd;
+                            adp.Fill(result, "Table" + i.ToString());
+                        }
+                    }
+                }
+                catch (DbException dbEx)
+                {
+                    result = null;
+                    throw dbEx;
+                }
+                finally
+                {
+                    if (cmd != null)
+                        cmd.Dispose();
+                    if (adp != null)
+                        adp.Dispose();
+                }
+            }
+            return result;
+        }
 
         /// <summary>
         /// 执行查询语句
@@ -517,8 +710,33 @@ namespace Vic.Data
         /// <returns>DataTable</returns>
         public DataTable QueryTable(string sql)
         {
+            return QueryTable(sql, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行查询语句
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataTable</returns>
+        public DataTable QueryTable(string sql, params DbParameter[] parameters)
+        {
+            if (parameters != null)
+                return QueryTable(sql, parameters.ToList());
+            else
+                return QueryTable(sql, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行查询语句
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataTable</returns>
+        public DataTable QueryTable(string sql, IList<DbParameter> parameters)
+        {
             DataTable result = new DataTable();
-            DataSet ds = Query(sql);
+            DataSet ds = Query(sql, parameters);
             if (ds != null && ds.Tables.Count > 0)
             {
                 result = ds.Tables[0].Copy();
@@ -537,6 +755,31 @@ namespace Vic.Data
         /// <returns>DbDataReader</returns>
         public DbDataReader QueryReader(string sql)
         {
+            return QueryReader(sql, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行查询语句，返回DataReader，用完后要调用DbDataReader的Close()方法关闭实例
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DbDataReader</returns>
+        public DbDataReader QueryReader(string sql, params DbParameter[] parameters)
+        {
+            if (parameters != null)
+                return QueryReader(sql, parameters.ToList());
+            else
+                return QueryReader(sql, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行查询语句，返回DataReader，用完后要调用DbDataReader的Close()方法关闭实例
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DbDataReader</returns>
+        public DbDataReader QueryReader(string sql, IList<DbParameter> parameters)
+        {
             DbConnection conn = null;
             DbCommand cmd = null;
             DbDataReader dataReader = null;
@@ -548,6 +791,13 @@ namespace Vic.Data
                 cmd = CreateCommand(conn);
                 cmd.CommandType = CommandType.Text;
                 cmd.CommandText = sql;
+                if (parameters != null && parameters.Count > 0)
+                {
+                    foreach (DbParameter para in parameters)
+                    {
+                        cmd.Parameters.Add(para);
+                    }
+                }
                 dataReader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
             }
             catch (DbException dbEx)
@@ -587,6 +837,35 @@ namespace Vic.Data
         /// <returns>DataTable</returns>
         public DataTable QueryPage(string sql, int pageSize, int currPageIndex)
         {
+            return QueryPage(sql, pageSize, currPageIndex, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行分页查询
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="pageSize">分页大小</param>
+        /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataTable</returns>
+        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, params DbParameter[] parameters)
+        {
+            if (parameters != null)
+                return QueryPage(sql, pageSize, currPageIndex, parameters.ToList());
+            else
+                return QueryPage(sql, pageSize, currPageIndex, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行分页查询
+        /// </summary>
+        /// <param name="sql">查询语句</param>
+        /// <param name="pageSize">分页大小</param>
+        /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns>DataTable</returns>
+        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, IList<DbParameter> parameters)
+        {
             DataTable result = new DataTable();
             result.TableName = "Table";
             int startIndex = (currPageIndex - 1) * pageSize; //读取数据的开始索引
@@ -595,7 +874,7 @@ namespace Vic.Data
             DbDataReader dataReader = null;
             try
             {
-                dataReader = QueryReader(sql);
+                dataReader = QueryReader(sql, parameters);
 
                 #region 构造表结构
                 DataTable schemaDt = dataReader.GetSchemaTable();
@@ -661,7 +940,21 @@ namespace Vic.Data
         /// 执行存储过程,带参数
         /// </summary>
         /// <param name="storedProcName">存储过程名称</param>
-        /// <param name="parameters">DbParameter 参数</param>
+        /// <param name="parameters">存储过程的 DbParameter 类型参数</param>
+        /// <returns></returns>
+        public DataSet ExecProcedure(string storedProcName, params DbParameter[] parameters)
+        {
+            if (parameters != null)
+                return ExecProcedure(storedProcName, parameters.ToList());
+            else
+                return ExecProcedure(storedProcName, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 执行存储过程,带参数
+        /// </summary>
+        /// <param name="storedProcName">存储过程名称</param>
+        /// <param name="parameters">存储过程的 DbParameter 类型参数</param>
         /// <returns></returns>
         public DataSet ExecProcedure(string storedProcName, IList<DbParameter> parameters)
         {
@@ -714,19 +1007,34 @@ namespace Vic.Data
         /// <param name="storedProcName">存储过程名称</param>
         /// <param name="tableNames">表名</param>
         /// <returns>DataSet</returns>
-        public DataSet ExecProcedure(string storedProcName, params string[] tableNames)
+        public DataSet ExecProcedure(string storedProcName, string[] tableNames)
         {
             return ExecProcedure(storedProcName, new List<DbParameter>(), tableNames);
         }
 
         /// <summary>
-        /// 执行存储过程,带参数,并返回指定表数据集
+        /// 执行存储过程(带 DbParameter 参数),并返回指定表数据集
         /// </summary>
         /// <param name="storedProcName">存储过程名称</param>
-        /// <param name="parameters">DbParameter 参数</param>
+        /// <param name="parameters">存储过程的 DbParameter 类型参数</param>
         /// <param name="tableNames">表名</param>
         /// <returns>DataSet</returns>
-        public DataSet ExecProcedure(string storedProcName, IList<DbParameter> parameters, params string[] tableNames)
+        public DataSet ExecProcedure(string storedProcName, DbParameter[] parameters, string[] tableNames)
+        {
+            if (parameters != null)
+                return ExecProcedure(storedProcName, parameters.ToList(), tableNames);
+            else
+                return ExecProcedure(storedProcName, new List<DbParameter>(), tableNames);
+        }
+
+        /// <summary>
+        /// 执行存储过程(带 DbParameter 参数),并返回指定表数据集
+        /// </summary>
+        /// <param name="storedProcName">存储过程名称</param>
+        /// <param name="parameters">存储过程的 DbParameter 类型参数</param>
+        /// <param name="tableNames">表名</param>
+        /// <returns>DataSet</returns>
+        public DataSet ExecProcedure(string storedProcName, IList<DbParameter> parameters, string[] tableNames)
         {
             DataSet result = new DataSet();
             using (DbConnection conn = CreateConnection())
@@ -793,6 +1101,33 @@ namespace Vic.Data
         /// <returns></returns>
         public void Update(DataTable dataTable, string sql)
         {
+            Update(dataTable, sql, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 更新数据库
+        /// </summary>
+        /// <param name="dataTable">DataTable，必须设置主键。</param>
+        /// <param name="sql">Table对应的SQL，必须包含主键列。</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns></returns>
+        public void Update(DataTable dataTable, string sql, params DbParameter[] parameters)
+        {
+            if (parameters != null)
+                Update(dataTable, sql, parameters.ToList());
+            else
+                Update(dataTable, sql, new List<DbParameter>());
+        }
+
+        /// <summary>
+        /// 更新数据库
+        /// </summary>
+        /// <param name="dataTable">DataTable，必须设置主键。</param>
+        /// <param name="sql">Table对应的SQL，必须包含主键列。</param>
+        /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
+        /// <returns></returns>
+        public void Update(DataTable dataTable, string sql, IList<DbParameter> parameters)
+        {
             using (DbConnection conn = CreateConnection())
             {
                 DbCommand cmd = null;
@@ -805,6 +1140,13 @@ namespace Vic.Data
                     cmd = CreateCommand(conn);
                     cmd.CommandType = CommandType.Text;
                     cmd.CommandText = sql;
+                    if (parameters != null && parameters.Count > 0)
+                    {
+                        foreach (DbParameter para in parameters)
+                        {
+                            cmd.Parameters.Add(para);
+                        }
+                    }
                     adp.SelectCommand = cmd;
                     cmbBuilder = CreateCommandBuilder();
                     cmbBuilder.DataAdapter = adp;
@@ -839,9 +1181,9 @@ namespace Vic.Data
         /// 更新数据库
         /// </summary>
         /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
-        /// <param name="sql">每个Table对应的SQL，必须包含主键列。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
         /// <returns></returns>
-        public void Update(DataSet dataSet, params string[] sql)
+        public void Update(DataSet dataSet, params string[] sqls)
         {
             using (DbConnection conn = CreateConnection())
             {
@@ -857,7 +1199,79 @@ namespace Vic.Data
                     {
                         cmd = CreateCommand(conn);
                         cmd.CommandType = CommandType.Text;
-                        cmd.CommandText = sql[i];
+                        cmd.CommandText = sqls[i];
+                        adp.SelectCommand = cmd;
+                        cmbBuilder = CreateCommandBuilder();
+                        cmbBuilder.DataAdapter = adp;
+
+                        DbCommand inCmd = cmbBuilder.GetInsertCommand();
+                        DbCommand upCmd = cmbBuilder.GetUpdateCommand();
+                        DbCommand delCmd = cmbBuilder.GetDeleteCommand();
+
+                        //考虑并发
+                        lock (typeof(DataAccess))
+                        {
+                            adp.Update(dataSet.Tables[i]);
+                        }
+                    }
+                }
+                catch (DbException dbEx)
+                {
+                    throw dbEx;
+                }
+                finally
+                {
+                    if (cmbBuilder != null)
+                        cmbBuilder.Dispose();
+                    if (cmd != null)
+                        cmd.Dispose();
+                    if (adp != null)
+                        adp.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 更新数据库(带 DbParameter 参数)
+        /// </summary>
+        /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
+        /// <returns></returns>
+        public void Update(DataSet dataSet, params DbSQL[] sqls)
+        {
+            Update(dataSet, sqls.ToArray());
+        }
+
+        /// <summary>
+        /// 更新数据库(带 DbParameter 参数)
+        /// </summary>
+        /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
+        /// <returns></returns>
+        public void Update(DataSet dataSet, IList<DbSQL> sqls)
+        {
+            using (DbConnection conn = CreateConnection())
+            {
+                DbCommand cmd = null;
+                DbDataAdapter adp = null;
+                DbCommandBuilder cmbBuilder = null;
+
+                try
+                {
+                    conn.Open();
+                    adp = CreateDataAdapter();
+                    for (int i = 0; i < dataSet.Tables.Count; i++)
+                    {
+                        cmd = CreateCommand(conn);
+                        cmd.CommandType = CommandType.Text;
+                        cmd.CommandText = sqls[i].SQLString;
+                        if (sqls[i].DbParameters != null && sqls[i].DbParameters.Length > 0)
+                        {
+                            foreach (DbParameter para in sqls[i].DbParameters)
+                            {
+                                cmd.Parameters.Add(para);
+                            }
+                        }
                         adp.SelectCommand = cmd;
                         cmbBuilder = CreateCommandBuilder();
                         cmbBuilder.DataAdapter = adp;
@@ -893,9 +1307,9 @@ namespace Vic.Data
         /// 更新数据库(事务)
         /// </summary>
         /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
-        /// <param name="sql">每个Table对应的SQL，必须包含主键列。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
         /// <returns></returns>
-        public void UpdateTran(DataSet dataSet, params string[] sql)
+        public void UpdateTran(DataSet dataSet, params string[] sqls)
         {
             using (DbConnection conn = CreateConnection())
             {
@@ -912,7 +1326,85 @@ namespace Vic.Data
                     {
                         cmd = conn.CreateCommand();
                         cmd.CommandType = CommandType.Text;
-                        cmd.CommandText = sql[i];
+                        cmd.CommandText = sqls[i];
+                        adp.SelectCommand = cmd;
+                        cmbBuilder = CreateCommandBuilder();
+                        cmbBuilder.DataAdapter = adp;
+
+                        DbCommand inCmd = cmbBuilder.GetInsertCommand();
+                        DbCommand upCmd = cmbBuilder.GetUpdateCommand();
+                        DbCommand delCmd = cmbBuilder.GetDeleteCommand();
+
+                        //考虑并发
+                        lock (typeof(DataAccess))
+                        {
+                            adp.Update(dataSet.Tables[i]);
+                        }
+                    }
+                    trans.Commit();
+                }
+                catch (DbException dbEx)
+                {
+                    if (trans != null)
+                        trans.Rollback();
+                    throw dbEx;
+                }
+                finally
+                {
+                    if (trans != null)
+                        trans.Dispose();
+                    if (cmbBuilder != null)
+                        cmbBuilder.Dispose();
+                    if (cmd != null)
+                        cmd.Dispose();
+                    if (adp != null)
+                        adp.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 更新数据库(事务,带 DbParameter 参数)
+        /// </summary>
+        /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
+        /// <returns></returns>
+        public void UpdateTran(DataSet dataSet, params DbSQL[] sqls)
+        {
+            UpdateTran(dataSet, sqls.ToList());
+        }
+
+        /// <summary>
+        /// 更新数据库(事务,带 DbParameter 参数)
+        /// </summary>
+        /// <param name="dataSet">DataSet，必须设置主键，多表时需要设置每个的TableName。</param>
+        /// <param name="sqls">每个Table对应的SQL，必须包含主键列。</param>
+        /// <returns></returns>
+        public void UpdateTran(DataSet dataSet, IList<DbSQL> sqls)
+        {
+            using (DbConnection conn = CreateConnection())
+            {
+                DbCommand cmd = null;
+                DbDataAdapter adp = null;
+                DbCommandBuilder cmbBuilder = null;
+                DbTransaction trans = null;
+                try
+                {
+                    conn.Open();
+                    adp = CreateDataAdapter();
+                    trans = conn.BeginTransaction();
+                    for (int i = 0; i < dataSet.Tables.Count; i++)
+                    {
+                        cmd = conn.CreateCommand();
+                        cmd.CommandType = CommandType.Text;
+                        cmd.CommandText = sqls[i].SQLString;
+                        if (sqls[i].DbParameters != null && sqls[i].DbParameters.Length > 0)
+                        {
+                            foreach (DbParameter para in sqls[i].DbParameters)
+                            {
+                                cmd.Parameters.Add(para);
+                            }
+                        }
                         adp.SelectCommand = cmd;
                         cmbBuilder = CreateCommandBuilder();
                         cmbBuilder.DataAdapter = adp;

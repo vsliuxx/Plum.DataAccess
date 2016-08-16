@@ -30,6 +30,10 @@ namespace Vic.Data
             return list;
         }
 
+        /// <summary>
+        /// DataTable转实体
+        /// </summary>
+        /// <typeparam name="Entity"></typeparam>
         public class DataTableEntityBuilder<Entity>
         {
             private static readonly MethodInfo getValueMethod = typeof(DataRow).GetMethod("get_Item", new Type[] { typeof(int) });
@@ -37,6 +41,11 @@ namespace Vic.Data
             private delegate Entity Load(DataRow dataRecord);
             private Load handler;
             private DataTableEntityBuilder() { }
+            /// <summary>
+            /// DataRow转实体
+            /// </summary>
+            /// <param name="dataRecord"></param>
+            /// <returns></returns>
             public Entity Build(DataRow dataRecord)
             {
                 return handler(dataRecord);
@@ -185,8 +194,10 @@ namespace Vic.Data
         ///<summary>  
         ///利用反射和泛型将SqlDataReader转换成List模型  
         ///</summary>  
-        ///<param name="sql">查询sql语句</param>  
-        ///<returns></returns>  
+        /// <typeparam name="T"></typeparam>
+        /// <param name="reader"></param>
+        /// <param name="sql"></param>
+        /// <returns></returns>
         public static IList<T> ExecuteToList<T>(IDataReader reader, string sql) where T : new()
         {
             IList<T> list;
@@ -231,7 +242,124 @@ namespace Vic.Data
 
             }
             return list;
-        } 
+        }
 
+        public static List<T> ToListByEmit<T>(this IDataReader reader) where T : class, new()
+        {
+            // 定义返回结果
+            List<T> result = new List<T>();
+
+            // 获取所有字段
+            var properties = typeof(T).GetProperties().ToList();
+            // 定义字典
+            Dictionary<int, DataColumn> columnDics = new Dictionary<int, DataColumn>();
+            //表达式字典委托   
+            Dictionary<int, Action<T, IDataReader>> actionDics = new Dictionary<int, Action<T, IDataReader>>();
+            //生成表头  
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                DataColumn col = new DataColumn()
+                {
+                    ColumnName = reader.GetName(i),
+                    DataType = reader.GetFieldType(i),
+                    Namespace = reader.GetDataTypeName(i)
+                };
+                //添加列  
+                columnDics.Add(i, col);
+
+                if (!properties.Exists(p => p.Name.ToUpper() == col.ColumnName))
+                {
+                    continue;
+                }
+
+                //获取字典值  
+                actionDics.Add(i, SetValueToEntity<T>(i, col.ColumnName, col.DataType));
+            }
+
+            //查询读取项  
+            while (reader.Read())
+            {
+                T objT = new T();
+
+                objT = IDataReaderEntityBuilder<T>.CreateBuilder(typeof(T), reader).Build(reader);
+
+                //添加到集合  
+                result.Add(objT);
+
+            }
+
+            return result;
+        }
+    }
+
+
+    /// <summary>
+    /// ** 描述：DataReader实体生成
+    /// ** 创始时间：2010-2-28
+    /// ** 修改时间：-
+    /// ** 作者：网络
+    /// ** 使用说明：
+    /// </summary>
+    public class IDataReaderEntityBuilder<T>
+    {
+        private static readonly MethodInfo getValueMethod =
+        typeof(IDataRecord).GetMethod("get_Item", new Type[] { typeof(int) });
+        private static readonly MethodInfo isDBNullMethod =
+            typeof(IDataRecord).GetMethod("IsDBNull", new Type[] { typeof(int) });
+        private delegate T Load(IDataRecord dataRecord);
+
+        private Load handler;
+
+        /// <summary>
+        /// DataReader
+        /// </summary>
+        /// <param name="dataRecord"></param>
+        /// <returns></returns>
+        public T Build(IDataRecord dataRecord)
+        {
+            return handler(dataRecord);
+        }
+
+        /// <summary>
+        /// DataReader转化为实体
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="dataRecord"></param>
+        /// <returns></returns>
+        public static IDataReaderEntityBuilder<T> CreateBuilder(Type type, IDataRecord dataRecord)
+        {            
+            {
+                IDataReaderEntityBuilder<T> dynamicBuilder = new IDataReaderEntityBuilder<T>();
+                DynamicMethod method = new DynamicMethod("DynamicCreateEntity", type,
+                        new Type[] { typeof(IDataRecord) }, type, true);
+                ILGenerator generator = method.GetILGenerator();
+                LocalBuilder result = generator.DeclareLocal(type);
+                generator.Emit(OpCodes.Newobj, type.GetConstructor(Type.EmptyTypes));
+                generator.Emit(OpCodes.Stloc, result);
+                for (int i = 0; i < dataRecord.FieldCount; i++)
+                {
+                    PropertyInfo propertyInfo = type.GetProperty(dataRecord.GetName(i),BindingFlags.IgnoreCase);
+                    Label endIfLabel = generator.DefineLabel();
+                    if (propertyInfo != null && propertyInfo.GetSetMethod() != null)
+                    {
+                        generator.Emit(OpCodes.Ldarg_0);
+                        generator.Emit(OpCodes.Ldc_I4, i);
+                        generator.Emit(OpCodes.Callvirt, isDBNullMethod);
+                        generator.Emit(OpCodes.Brtrue, endIfLabel);
+                        generator.Emit(OpCodes.Ldloc, result);
+                        generator.Emit(OpCodes.Ldarg_0);
+                        generator.Emit(OpCodes.Ldc_I4, i);
+                        generator.Emit(OpCodes.Callvirt, getValueMethod);
+                        generator.Emit(OpCodes.Unbox_Any, propertyInfo.PropertyType);
+                        generator.Emit(OpCodes.Callvirt, propertyInfo.GetSetMethod());
+                        generator.MarkLabel(endIfLabel);
+                    }
+                }
+                generator.Emit(OpCodes.Ldloc, result);
+                generator.Emit(OpCodes.Ret);
+                dynamicBuilder.handler = (Load)method.CreateDelegate(typeof(Load));
+                return dynamicBuilder;
+            }
+        }
     }
 }

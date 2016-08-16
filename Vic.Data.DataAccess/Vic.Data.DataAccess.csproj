@@ -42,11 +42,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DataAccess2.cs" />
     <Compile Include="DataAccessComm.cs" />
     <Compile Include="DbTypes.cs" />
+    <Compile Include="ExtensionException.cs" />
     <Compile Include="ExtensionMethod.cs" />
-    <Compile Include="IDataAccess2.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="DataAccess.cs" />
     <Compile Include="IDataAccess.cs" />
