@@ -203,7 +203,10 @@ namespace Vic.Data
             this.Dispose(true);
             GC.SuppressFinalize(this);
         }
-
+        /// <summary>
+        /// 释放资源
+        /// </summary>
+        /// <param name="disposing"></param>
         protected virtual void Dispose(bool disposing)
         {
             if (this.isDisposed)
