@@ -119,7 +119,8 @@ namespace TestDemo
             string conn = ConfigurationManager.ConnectionStrings["oracle"].ConnectionString;
             string prname = ConfigurationManager.ConnectionStrings["oracle"].ProviderName;
             dataAccess2 = new Vic.Data.DataAccess(conn, prname);
-            DataTable dt = dataAccess2.QueryPage(this.textBox3.Text, 2, 2);
+
+            DataTable dt = dataAccess2.QueryPage(this.textBox3.Text, 2, 2,);
             this.dataGridView1.DataSource = dt;
             
         }
