@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Data.Common;
+using System.Data;
+using System.Reflection;
 
 namespace Vic.Data
 {
@@ -9,12 +12,12 @@ namespace Vic.Data
     /// 通用数据库访问公共类
     /// </summary>
     [Serializable]
-    public class DataAccessComm
+    public class Common
     {
         /// <summary>
         /// 通用数据库访问公共类
         /// </summary>
-        public DataAccessComm()
+        public Common()
         {
 
         }
@@ -66,7 +69,7 @@ namespace Vic.Data
             {
                 return DbProviderNames().First(t => t.Value.ToLower() == dbProviderName.ToLower()).Key;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 throw new Exception(ex.Message + Environment.NewLine + string.Format("值\"{0}\"没有从 DbProviderNames 列表中检索到DbProviderType 枚举项。", dbProviderName));
             }
@@ -166,6 +169,96 @@ namespace Vic.Data
         {
             this.SQLString = sqlString;
             this.DbParameters = dbParameters;
+        }
+    }
+
+    /// <summary>
+    /// 调试用
+    /// </summary>
+    internal static class DbProviderFactoriesDebug
+    {
+        private const string AssemblyQualifiedName = "AssemblyQualifiedName";
+
+        private const string Instance = "Instance";
+
+        private const string InvariantName = "InvariantName";
+
+        private static ConnectionState _initState;
+
+        private static DataSet _configTable;
+
+        private static object _lockobj = new object();
+
+        public static DbProviderFactory GetFactory(string providerInvariantName)
+        {
+            //ADP.CheckArgumentLength(providerInvariantName, "providerInvariantName");
+            DataSet configTable = GetConfigTable();
+            DataTable dataTable = (configTable != null) ? configTable.Tables["DbProviderFactories"] : null;
+            if (dataTable != null)
+            {
+                DataRow dataRow = dataTable.Rows.Find(providerInvariantName);
+                if (dataRow != null)
+                {
+                    return GetFactory(dataRow);
+                }
+            }
+            //throw ADP.ConfigProviderNotFound();
+            return null;
+        }
+
+        public static DbProviderFactory GetFactory(DataRow providerRow)
+        {
+            //ADP.CheckArgumentNull(providerRow, "providerRow");
+            DataColumn dataColumn = providerRow.Table.Columns["AssemblyQualifiedName"];
+            if (dataColumn != null)
+            {
+                string text = providerRow[dataColumn] as string;
+                if (!string.IsNullOrEmpty(text))
+                {
+                    //Assembly ass = Assembly.LoadFile(AppDomain.CurrentDomain.BaseDirectory + "System.Data.SQLite.dll");  
+
+                    Type type = Type.GetType(text);
+
+                    if (type != null)
+                    {
+                        FieldInfo field = type.GetField("Instance", BindingFlags.DeclaredOnly | BindingFlags.Static | BindingFlags.Public);
+                        if (field != null && field.FieldType.IsSubclassOf(typeof(DbProviderFactory)))
+                        {
+                            object value = field.GetValue(null);
+                            if (value != null)
+                            {
+                                return (DbProviderFactory)value;
+                            }
+                        }
+                        //throw ADP.ConfigProviderInvalid();
+                    }
+                    //throw ADP.ConfigProviderNotInstalled();
+                }
+            }
+            //throw ADP.ConfigProviderMissing();
+            return null;
+        }
+
+        public static DataTable GetFactoryClasses()
+        {
+            DataSet configTable = GetConfigTable();
+            DataTable dataTable = (configTable != null) ? configTable.Tables["DbProviderFactories"] : null;
+            if (dataTable != null)
+            {
+                dataTable = dataTable.Copy();
+            }
+            else
+            {
+                //dataTable = DbProviderFactoriesConfigurationHandler.CreateProviderDataTable();
+            }
+            return dataTable;
+        }
+
+        private static DataSet GetConfigTable()
+        {
+            DataSet ds = new DataSet();
+            ds.Tables.Add(System.Data.Common.DbProviderFactories.GetFactoryClasses());
+            return ds;
         }
     }
 }

@@ -8,8 +8,10 @@ namespace Vic.Data
     /// <summary>
     /// 数据类型类
     /// </summary>
+    [Serializable]
     public static class DbTypes
     {
+        #region 数据库类型转 System.Data.DbType 方法
         /// <summary>
         /// 将 Vic.Data.SqlDbType 转换为 System.Data.DbType
         /// </summary>
@@ -532,7 +534,77 @@ namespace Vic.Data
             }
             return type;
         }
+        #endregion
 
+        #region 数据库类型、C# 数据类型转换方法
+        /// <summary>
+        /// 将 Vic.Data.SqlDbType 转换为 C# 数据类型
+        /// </summary>
+        /// <param name="sqlType">SqlDbType</param>
+        /// <returns></returns>
+        public static Type ToCsharpType(SqlDbType sqlType)
+        {
+            switch (sqlType)
+            {
+                case SqlDbType.BigInt:
+                    return typeof(Int64);
+                case SqlDbType.Binary:
+                    return typeof(object);
+                case SqlDbType.Bit:
+                    return typeof(bool);
+                case SqlDbType.Char:
+                    return typeof(string);
+                case SqlDbType.DateTime:
+                    return typeof(DateTime);
+                case SqlDbType.Decimal:
+                    return typeof(Decimal);
+                case SqlDbType.Float:
+                    return typeof(double);
+                case SqlDbType.Image:
+                    return typeof(object);
+                case SqlDbType.Int:
+                    return typeof(int);
+                case SqlDbType.Money:
+                    return typeof(decimal);
+                case SqlDbType.NChar:
+                    return typeof(string);
+                case SqlDbType.NText:
+                    return typeof(string);
+                case SqlDbType.NVarChar:
+                    return typeof(string);
+                case SqlDbType.Real:
+                    return typeof(Single);
+                case SqlDbType.SmallDateTime:
+                    return typeof(DateTime);
+                case SqlDbType.SmallInt:
+                    return typeof(Int16);
+                case SqlDbType.SmallMoney:
+                    return typeof(decimal);
+                case SqlDbType.Text:
+                    return typeof(string);
+                case SqlDbType.Timestamp:
+                    return typeof(object);
+                case SqlDbType.TinyInt:
+                    return typeof(byte);
+                case SqlDbType.Udt:
+                    return typeof(object);
+                case SqlDbType.UniqueIdentifier:
+                    return typeof(object);
+                case SqlDbType.VarBinary:
+                    return typeof(object);
+                case SqlDbType.VarChar:
+                    return typeof(string);
+                case SqlDbType.Variant:
+                    return typeof(object);
+                case SqlDbType.Xml:
+                    return typeof(object);
+                default:
+                    return null;
+            }
+        }
+        #endregion
+
+        #region 直接返回数据库类型对应的 System.Data.DbType
         /// <summary>
         /// 适用于 System.Data.SqlClient 驱动
         /// </summary>
@@ -1171,11 +1243,14 @@ namespace Vic.Data
                 get { return DbTypes.OracleClientParse(Vic.Data.OracleClientType.XmlType); }
             }
         }
+        #endregion
     }
 
+    #region 数据库类型枚举
     /// <summary>
     /// 用于 Vic.Data.DataAccess 中 Parameter 参数 SQL Server 特定的数据类型
     /// </summary>
+    [Serializable]
     public enum SqlDbType
     {
         //
@@ -1315,6 +1390,7 @@ namespace Vic.Data
     /// <summary>
     /// 用于 Vic.Data.DataAccess 中 Parameter 参数 Odbc 特定的数据类型
     /// </summary>
+    [Serializable]
     public enum OdbcType
     {
         //
@@ -1424,6 +1500,7 @@ namespace Vic.Data
     /// <summary>
     /// 用于 Vic.Data.DataAccess 中 Parameter 参数 OleDb 特定的数据类型
     /// </summary>
+    [Serializable]
     public enum OleDbType
     {
         // 摘要:
@@ -1581,6 +1658,7 @@ namespace Vic.Data
     /// <summary>
     /// 用于 Vic.Data.DataAccess 中 Parameter 参数 Oracle 特定的数据类型
     /// </summary>
+    [Serializable]
     public enum OracleType
     {
         // 摘要:
@@ -1768,6 +1846,7 @@ namespace Vic.Data
     /// <summary>
     /// 用于 Vic.Data.DataAccess 中 Parameter 参数 OracleClient、OracleManaged 特定的数据类型
     /// </summary>
+    [Serializable]
     public enum OracleClientType
     {
         //BFile = 101,
@@ -1802,4 +1881,5 @@ namespace Vic.Data
         //BinaryDouble = 132,
         //BinaryFloat = 133,
     }
+    #endregion
 }

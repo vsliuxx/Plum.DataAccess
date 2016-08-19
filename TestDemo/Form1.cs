@@ -31,8 +31,8 @@ namespace TestDemo
             DataTable factoryDt = System.Data.Common.DbProviderFactories.GetFactoryClasses();
             this.dataGridView2.DataSource = factoryDt;
 
-            string name = Vic.Data.DataAccessComm.GetProviderName(Vic.Data.DbProviderType.OracleManaged);
-            Vic.Data.DbProviderType type = Vic.Data.DataAccessComm.GetProviderType("System.Data.OleDb");
+            string name = Vic.Data.Common.GetProviderName(Vic.Data.DbProviderType.OracleManaged);
+            Vic.Data.DbProviderType type = Vic.Data.Common.GetProviderType("System.Data.OleDb");
 
           //System.Configuration.ConfigurationManager.ConnectionStrings[].;
           //  System.Configuration.ConfigurationSettings.

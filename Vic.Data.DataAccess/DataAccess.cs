@@ -5,7 +5,6 @@ using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Collections;
-using System.Linq.Expressions;
 
 namespace Vic.Data
 {
@@ -13,7 +12,7 @@ namespace Vic.Data
     /// 通用数据库访问类
     /// </summary>
     [Serializable]
-    public class DataAccess : MarshalByRefObject, IDataAccess, IDisposable
+    public partial class DataAccess : MarshalByRefObject, IDataAccess, IDisposable
     {
         private Dictionary<string, object> parms;
 
@@ -77,7 +76,7 @@ namespace Vic.Data
             this._dbProviderName = dbProviderName;
             try
             {
-                this._dbProviderType = DataAccessComm.GetProviderType(dbProviderName);
+                this._dbProviderType = Common.GetProviderType(dbProviderName);
             }
             catch (Exception ex)
             {
@@ -90,7 +89,7 @@ namespace Vic.Data
         /// <param name="connectionString">数据库链接串</param>
         /// <param name="dbProviderType">数据库程序集类型</param>
         public DataAccess(string connectionString, DbProviderType dbProviderType)
-            : this(connectionString, DataAccessComm.GetProviderName(dbProviderType))
+            : this(connectionString, Common.GetProviderName(dbProviderType))
         {
         }
 
@@ -106,7 +105,7 @@ namespace Vic.Data
             }
             catch (Exception ex)
             {
-                throw new ProviderTypeNoneException(this._dbProviderName);
+                throw new ProviderTypeNoneException(this._dbProviderName, ex.Message, ex.InnerException);
             }
         }
 
@@ -204,8 +203,9 @@ namespace Vic.Data
             this.Dispose(true);
             GC.SuppressFinalize(this);
         }
+
         /// <summary>
-        /// 释放资源
+        /// 释放托管和非托管资源
         /// </summary>
         /// <param name="disposing"></param>
         protected virtual void Dispose(bool disposing)
@@ -485,231 +485,6 @@ namespace Vic.Data
                         trans.Dispose();
                 }
             }
-        }
-
-        /// <summary>
-        /// 执行查询语句，返回泛型
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="sql"></param>
-        /// <returns></returns>
-        public List<T> Query<T>(string sql) where T : class, new()
-        {
-            // 定义返回参数
-            List<T> lstResult = null;
-
-            try
-            {
-                // 定义数据库连接
-                using (DbConnection conn = CreateConnection())
-                {
-                    // 定义数据库命令对象
-                    using (DbCommand cmd = conn.CreateCommand())
-                    {
-                        // 设置命令类型
-                        cmd.CommandType = CommandType.Text;
-                        // 设置查询语句
-                        cmd.CommandText = sql;
-                        // 打开连接
-                        cmd.Connection.Open();
-
-                        // 定义数据库Reader对象
-                        DbDataReader reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
-                        // 由DataReader生成泛型实体
-                        lstResult = reader.ToList<T>();
-                        //lstResult = reader.ToListByEmit<T>();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Query方法执行错误!" + ex.Message, ex);
-            }
-
-            return lstResult;
-        }
-
-        /// <summary>
-        /// 查询数据
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="predicate"></param>
-        /// <returns></returns>
-        public List<T> Query<T>(Expression<Func<T, bool>> predicate) where T : class, new()
-        {
-            // 定义返回参数
-            List<T> lstResult = null;
-
-            try
-            {
-                Type type = typeof(T);
-
-                // 表名
-                string tableName = type.Name;
-                // 查询条件
-                string sqlWhere = string.Empty;
-                // 排序
-                string ordering = string.Empty;
-
-                ExpressionToSql expression = new ExpressionToSql();
-
-                sqlWhere = expression.GenerateSql(predicate);
-
-                // 查询语句
-                string querySql = string.Format("select * from {0} where 1=1 {1}", tableName, sqlWhere);
-
-                using (DbDataReader reader = QueryReader(querySql))
-                {
-                    lstResult = reader.ToList<T>();
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Query方法执行错误!" + ex.Message, ex);
-            }
-
-            return lstResult;
-        }
-
-        /// <summary>
-        /// 删除数据
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="predicate"></param>
-        /// <returns></returns>
-        public int Delete<T>(Expression<Func<T, bool>> predicate) where T : class, new()
-        {
-            if (predicate == null)
-            {
-                throw new ArgumentNullException("predicate参数不能为空！");
-            }
-
-            int updateRows = 0;
-
-            try
-            {
-                Type type = typeof(T);
-
-                // 表名
-                string tableName = type.Name;
-                // 查询条件
-                string sqlWhere = string.Empty;
-                // 排序
-                string ordering = string.Empty;
-
-                ExpressionToSql expression = new ExpressionToSql();
-
-                sqlWhere = expression.GenerateSql(predicate);
-
-                // 查询语句
-                string querySql = string.Format("delete from {0} where 1=1 {1}", tableName, sqlWhere);
-
-                updateRows = ExecuteNonQuery(querySql);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Delete方法执行错误!" + ex.Message, ex);
-            }
-
-            return updateRows;
-        }
-
-
-        /// <summary>
-        /// 删除数据
-        /// </summary>
-        /// <typeparam name="T"></typeparam> 
-        /// <param name="entity"></param>
-        /// <returns></returns>
-        public int Delete<T>(dynamic entity) where T : class, new()
-        {
-            if (entity == null)
-            {
-                throw new ArgumentNullException("entity参数不能为空！");
-            }
-
-            // 更新记录数
-            int updateRows = 0;
-
-            //(T)Convert.ChangeType(propValue, typeof(T));
-
-
-
-            try
-            {
-                // 获取表名
-                string tableName = typeof(T).Name;
-                // 获取类型
-                Type type = entity.GetType();
-                // 查询条件
-                string sqlWhere = string.Empty;
-                // 排序
-                string ordering = string.Empty;
-
-                foreach (var item in type.GetProperties())
-                {
-                    string propName = item.Name;
-                    string propValue = string.Empty;
-
-                    // 获取属性值             
-                    object objValue = entity.GetType().GetProperty(propName).GetValue(entity, null);
-
-                    if (type.Name == tableName && objValue == null)
-                    {
-                        continue;
-                    }
-
-                    Type propType = item.PropertyType;
-
-                    if (propType == typeof(DateTime))
-                    {
-
-                        if (DateTime.MinValue.ToString() == objValue.ToString() && type.Name == tableName)
-                        {
-                            continue;
-                        }
-                        else if (DateTime.MinValue.ToString() == objValue.ToString())
-                        {
-                            propValue = null;
-                        }
-                        else
-                        {
-                            propValue = string.Format("to_date('{0}','yyyy-mm-dd hh24:mm:ss')", propValue.ToString());
-                        }                       
-                    }
-                    else if (propType == typeof(int) || propType == typeof(decimal))
-                    {
-                        propValue = objValue.ToString();
-                    }
-                    else
-                    {
-                        propValue = string.Format("'{0}'", objValue.ToString());
-                    }
-
-
-
-                    if (propValue == null)
-                    {
-                        sqlWhere += string.Format(" and {0}=null", propName);
-                    }
-                    else
-                    {
-                        sqlWhere += string.Format(" and {0}={1}", propName, propValue);
-                    }
-
-                }
-
-                // 查询语句
-                string querySql = string.Format("delete from {0} where 1=1 {1}", tableName, sqlWhere);
-
-                updateRows = ExecuteNonQuery(querySql);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Delete方法执行错误!" + ex.Message, ex);
-            }
-
-            return updateRows;
         }
 
         /// <summary>
@@ -1021,10 +796,11 @@ namespace Vic.Data
         /// <param name="sql">查询语句</param>
         /// <param name="pageSize">分页大小</param>
         /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="allRowsCount">总记录数</param>
         /// <returns>DataTable</returns>
-        public DataTable QueryPage(string sql, int pageSize, int currPageIndex)
+        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, out int allRowsCount)
         {
-            return QueryPage(sql, pageSize, currPageIndex, new List<DbParameter>());
+            return QueryPage(sql, pageSize, currPageIndex, out allRowsCount, new List<DbParameter>());
         }
 
         /// <summary>
@@ -1033,14 +809,15 @@ namespace Vic.Data
         /// <param name="sql">查询语句</param>
         /// <param name="pageSize">分页大小</param>
         /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="allRowsCount">总记录数</param>
         /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
         /// <returns>DataTable</returns>
-        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, params DbParameter[] parameters)
+        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, out int allRowsCount, params DbParameter[] parameters)
         {
             if (parameters != null)
-                return QueryPage(sql, pageSize, currPageIndex, parameters.ToList());
+                return QueryPage(sql, pageSize, currPageIndex, out allRowsCount, parameters.ToList());
             else
-                return QueryPage(sql, pageSize, currPageIndex, new List<DbParameter>());
+                return QueryPage(sql, pageSize, currPageIndex, out allRowsCount, new List<DbParameter>());
         }
 
         /// <summary>
@@ -1049,18 +826,45 @@ namespace Vic.Data
         /// <param name="sql">查询语句</param>
         /// <param name="pageSize">分页大小</param>
         /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="allRowsCount">总记录数</param>
         /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
         /// <returns>DataTable</returns>
-        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, IList<DbParameter> parameters)
+        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, out int allRowsCount, IList<DbParameter> parameters)
         {
             DataTable result = new DataTable();
             result.TableName = "Table";
             int startIndex = (currPageIndex - 1) * pageSize; //读取数据的开始索引
             int endIndex = currPageIndex * pageSize - 1; //读取数据的结束索引
             int readCurrIndex = -1;  //DataReader读取的当前数据行的索引 
+            allRowsCount = 0; //总记录数
             DbDataReader dataReader = null;
             try
             {
+                #region 获取所有记录数
+                //DataTable allRowsDt = QueryTable(sql, parameters);
+                //if (allRowsDt != null)
+                //    allRowsCount = allRowsDt.Rows.Count;
+                //allRowsDt.Dispose();
+
+                dataReader = QueryReader(sql, parameters);
+                while (dataReader.Read())
+                {
+                    allRowsCount++;
+                }
+                dataReader.Close();
+                dataReader.Dispose();
+
+                double pageN = (allRowsCount + pageSize - 1) / pageSize;
+                int pageCount = Convert.ToInt32(Math.Truncate(pageN)); //总页数
+                if (currPageIndex > pageCount)
+                {
+                    //如果当前页码>总页数，则设置当前页码=总页数，并重新计算读取数据的开始和结束索引
+                    currPageIndex = pageCount;
+                    startIndex = (currPageIndex - 1) * pageSize;
+                    endIndex = currPageIndex * pageSize - 1;
+                }
+                #endregion
+
                 dataReader = QueryReader(sql, parameters);
 
                 #region 构造表结构
@@ -1089,7 +893,7 @@ namespace Vic.Data
                     for (int i = 0; i < cols; i++)
                     {
                         string colName = result.Columns[i].ColumnName;
-                        dr[colName] = dataReader[colName];
+                        dr[colName] = dataReader[dataReader.GetOrdinal(colName)];
                     }
                     result.Rows.Add(dr);
                 }
