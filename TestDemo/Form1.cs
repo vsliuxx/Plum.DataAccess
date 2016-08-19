@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using System.Configuration;
+using System.Linq.Expressions;
 //using Oracle.DataAccess.Client;
 
 namespace TestDemo
@@ -239,8 +240,22 @@ namespace TestDemo
             string conn = ConfigurationManager.ConnectionStrings["oracle"].ConnectionString;
             string prname = ConfigurationManager.ConnectionStrings["oracle"].ProviderName;
             Vic.Data.DataAccess dbAccess = new Vic.Data.DataAccess(conn,prname);
-            List<Product> lstProduct = dbAccess.Query<Product>("select * from product");
-            this.dataGridView1.DataSource = lstProduct;
+            //List<Product> lstProduct = dbAccess.Query<Product>(p=>p.ProductId==10);
+            //this.dataGridView1.DataSource = lstProduct;
+
+            // 利用表达式条件删除指定数据
+            //dbAccess.Delete<Product>(p => p.CreateDate > DateTime.Parse("2016-01-01"));
+            //dbAccess.Delete<Product>(p => p.ProductId==1|| p.ProductId==2);
+
+            // 删除指定实体
+            Product entity = new Product();
+            entity.ProductId = 1;
+            entity.CategoryId = 1;
+            dbAccess.Delete<Product>(entity);
+
+            //根据动态类型删除数据
+            //var product = new { ProductId = 10 };
+            //dbAccess.Delete<Product>(product);
         }
     }
 
