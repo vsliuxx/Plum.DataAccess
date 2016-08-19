@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using System.Configuration;
+using System.Linq.Expressions;
 //using Oracle.DataAccess.Client;
 
 namespace TestDemo
@@ -30,8 +31,8 @@ namespace TestDemo
             DataTable factoryDt = System.Data.Common.DbProviderFactories.GetFactoryClasses();
             this.dataGridView2.DataSource = factoryDt;
 
-            string name = Vic.Data.DataAccessComm.GetProviderName(Vic.Data.DbProviderType.OracleManaged);
-            Vic.Data.DbProviderType type = Vic.Data.DataAccessComm.GetProviderType("System.Data.OleDb");
+            string name = Vic.Data.Common.GetProviderName(Vic.Data.DbProviderType.OracleManaged);
+            Vic.Data.DbProviderType type = Vic.Data.Common.GetProviderType("System.Data.OleDb");
 
           //System.Configuration.ConfigurationManager.ConnectionStrings[].;
           //  System.Configuration.ConfigurationSettings.
@@ -118,7 +119,8 @@ namespace TestDemo
             string conn = ConfigurationManager.ConnectionStrings["oracle"].ConnectionString;
             string prname = ConfigurationManager.ConnectionStrings["oracle"].ProviderName;
             dataAccess2 = new Vic.Data.DataAccess(conn, prname);
-            DataTable dt = dataAccess2.QueryPage(this.textBox3.Text, 2, 2);
+
+            DataTable dt = dataAccess2.QueryPage(this.textBox3.Text, 2, 2,);
             this.dataGridView1.DataSource = dt;
             
         }
@@ -239,8 +241,22 @@ namespace TestDemo
             string conn = ConfigurationManager.ConnectionStrings["oracle"].ConnectionString;
             string prname = ConfigurationManager.ConnectionStrings["oracle"].ProviderName;
             Vic.Data.DataAccess dbAccess = new Vic.Data.DataAccess(conn,prname);
-            List<Product> lstProduct = dbAccess.Query<Product>("select * from product");
-            this.dataGridView1.DataSource = lstProduct;
+            //List<Product> lstProduct = dbAccess.Query<Product>(p=>p.ProductId==10);
+            //this.dataGridView1.DataSource = lstProduct;
+
+            // 利用表达式条件删除指定数据
+            //dbAccess.Delete<Product>(p => p.CreateDate > DateTime.Parse("2016-01-01"));
+            //dbAccess.Delete<Product>(p => p.ProductId==1|| p.ProductId==2);
+
+            // 删除指定实体
+            Product entity = new Product();
+            entity.ProductId = 1;
+            entity.CategoryId = 1;
+            dbAccess.Delete<Product>(entity);
+
+            //根据动态类型删除数据
+            //var product = new { ProductId = 10 };
+            //dbAccess.Delete<Product>(product);
         }
     }
 

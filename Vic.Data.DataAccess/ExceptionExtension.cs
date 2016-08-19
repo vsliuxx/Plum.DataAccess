@@ -48,7 +48,7 @@ namespace Vic.Data
             get
             {
                 StringBuilder explain = new StringBuilder();
-                explain.AppendFormat(@"原因：一般性问题，说明没有找到相关驱动""{0}""。" + Environment.NewLine, dbProviderName);
+                explain.AppendFormat(@"原因：""{0}""没有找到相关驱动DLL或版本错误。" + Environment.NewLine, dbProviderName);
                 explain.AppendFormat(@"解决方法：以Oracle.DataAccess.Client.dll驱动为例" + Environment.NewLine);
                 explain.AppendFormat(@"步骤1：app.config或Web.config文件中可能需要添加如下节点，同时需要注意Version。" + Environment.NewLine);
                 explain.AppendFormat(@"<system.data>" + Environment.NewLine);
@@ -57,8 +57,9 @@ namespace Vic.Data
                 explain.AppendFormat(@"  </DbProviderFactories>" + Environment.NewLine);
                 explain.AppendFormat(@"</system.data>" + Environment.NewLine);
                 explain.AppendFormat(@"步骤2：注册相关驱动DLL到GAC（如果步骤1有效可以忽略该操作）。" + Environment.NewLine);
-                explain.AppendFormat(@"(1)查看GAC：gacutil.exe /l Oracle.DataAccess" + Environment.NewLine);
-                explain.AppendFormat(@"(2)注册GAC：gacutil.exe /i Oracle.DataAccess.dll" + Environment.NewLine);
+                explain.AppendFormat(@"(1)查看GAC：gacutil.exe /l Oracle.DataAccess。" + Environment.NewLine);
+                explain.AppendFormat(@"(2)注册GAC：gacutil.exe /i Oracle.DataAccess.dll。" + Environment.NewLine);
+                explain.AppendFormat(@"(3)对于某些数据库只需将相关的DLL放到程序集路径下，无需注册。" + Environment.NewLine);
                 return base.Message + Environment.NewLine + explain.ToString();
             }
         }

@@ -12,7 +12,7 @@ namespace Vic.Data
     /// 通用数据库访问类
     /// </summary>
     [Serializable]
-    public class DataAccess : MarshalByRefObject, IDataAccess, IDisposable
+    public partial class DataAccess : MarshalByRefObject, IDataAccess, IDisposable
     {
         private Dictionary<string, object> parms;
 
@@ -76,7 +76,7 @@ namespace Vic.Data
             this._dbProviderName = dbProviderName;
             try
             {
-                this._dbProviderType = DataAccessComm.GetProviderType(dbProviderName);
+                this._dbProviderType = Common.GetProviderType(dbProviderName);
             }
             catch (Exception ex)
             {
@@ -89,7 +89,7 @@ namespace Vic.Data
         /// <param name="connectionString">数据库链接串</param>
         /// <param name="dbProviderType">数据库程序集类型</param>
         public DataAccess(string connectionString, DbProviderType dbProviderType)
-            : this(connectionString, DataAccessComm.GetProviderName(dbProviderType))
+            : this(connectionString, Common.GetProviderName(dbProviderType))
         {
         }
 
@@ -105,7 +105,7 @@ namespace Vic.Data
             }
             catch (Exception ex)
             {
-                throw new ProviderTypeNoneException(this._dbProviderName);
+                throw new ProviderTypeNoneException(this._dbProviderName, ex.Message, ex.InnerException);
             }
         }
 
@@ -203,8 +203,9 @@ namespace Vic.Data
             this.Dispose(true);
             GC.SuppressFinalize(this);
         }
+
         /// <summary>
-        /// 释放资源
+        /// 释放托管和非托管资源
         /// </summary>
         /// <param name="disposing"></param>
         protected virtual void Dispose(bool disposing)
@@ -485,49 +486,7 @@ namespace Vic.Data
                 }
             }
         }
-		
-        /// <summary>
-        /// 执行查询语句，返回泛型
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="sql"></param>
-        /// <returns></returns>
-        public List<T> Query<T>(string sql) where T : class,new()
-        {
-            // 定义返回参数
-            List<T> lstResult = null;
 
-            try
-            {
-                // 定义数据库连接
-                using (DbConnection conn = CreateConnection())
-                {
-                    // 定义数据库命令对象
-                    using (DbCommand cmd = conn.CreateCommand())
-                    {
-                        // 设置命令类型
-                        cmd.CommandType = CommandType.Text;
-                        // 设置查询语句
-                        cmd.CommandText = sql;
-                        // 打开连接
-                        cmd.Connection.Open();
-
-                        // 定义数据库Reader对象
-                        DbDataReader reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
-                        // 由DataReader生成泛型实体
-                        lstResult = reader.ToList<T>();
-                        //lstResult = reader.ToListByEmit<T>();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Query方法执行错误!" + ex.Message, ex);
-            }
-
-            return lstResult;
-        }
-		
         /// <summary>
         /// 执行查询语句
         /// </summary>
@@ -837,10 +796,11 @@ namespace Vic.Data
         /// <param name="sql">查询语句</param>
         /// <param name="pageSize">分页大小</param>
         /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="allRowsCount">总记录数</param>
         /// <returns>DataTable</returns>
-        public DataTable QueryPage(string sql, int pageSize, int currPageIndex)
+        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, out int allRowsCount)
         {
-            return QueryPage(sql, pageSize, currPageIndex, new List<DbParameter>());
+            return QueryPage(sql, pageSize, currPageIndex, out allRowsCount, new List<DbParameter>());
         }
 
         /// <summary>
@@ -849,14 +809,15 @@ namespace Vic.Data
         /// <param name="sql">查询语句</param>
         /// <param name="pageSize">分页大小</param>
         /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="allRowsCount">总记录数</param>
         /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
         /// <returns>DataTable</returns>
-        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, params DbParameter[] parameters)
+        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, out int allRowsCount, params DbParameter[] parameters)
         {
             if (parameters != null)
-                return QueryPage(sql, pageSize, currPageIndex, parameters.ToList());
+                return QueryPage(sql, pageSize, currPageIndex, out allRowsCount, parameters.ToList());
             else
-                return QueryPage(sql, pageSize, currPageIndex, new List<DbParameter>());
+                return QueryPage(sql, pageSize, currPageIndex, out allRowsCount, new List<DbParameter>());
         }
 
         /// <summary>
@@ -865,18 +826,45 @@ namespace Vic.Data
         /// <param name="sql">查询语句</param>
         /// <param name="pageSize">分页大小</param>
         /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="allRowsCount">总记录数</param>
         /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
         /// <returns>DataTable</returns>
-        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, IList<DbParameter> parameters)
+        public DataTable QueryPage(string sql, int pageSize, int currPageIndex, out int allRowsCount, IList<DbParameter> parameters)
         {
             DataTable result = new DataTable();
             result.TableName = "Table";
             int startIndex = (currPageIndex - 1) * pageSize; //读取数据的开始索引
             int endIndex = currPageIndex * pageSize - 1; //读取数据的结束索引
             int readCurrIndex = -1;  //DataReader读取的当前数据行的索引 
+            allRowsCount = 0; //总记录数
             DbDataReader dataReader = null;
             try
             {
+                #region 获取所有记录数
+                //DataTable allRowsDt = QueryTable(sql, parameters);
+                //if (allRowsDt != null)
+                //    allRowsCount = allRowsDt.Rows.Count;
+                //allRowsDt.Dispose();
+
+                dataReader = QueryReader(sql, parameters);
+                while (dataReader.Read())
+                {
+                    allRowsCount++;
+                }
+                dataReader.Close();
+                dataReader.Dispose();
+
+                double pageN = (allRowsCount + pageSize - 1) / pageSize;
+                int pageCount = Convert.ToInt32(Math.Truncate(pageN)); //总页数
+                if (currPageIndex > pageCount)
+                {
+                    //如果当前页码>总页数，则设置当前页码=总页数，并重新计算读取数据的开始和结束索引
+                    currPageIndex = pageCount;
+                    startIndex = (currPageIndex - 1) * pageSize;
+                    endIndex = currPageIndex * pageSize - 1;
+                }
+                #endregion
+
                 dataReader = QueryReader(sql, parameters);
 
                 #region 构造表结构
@@ -905,7 +893,7 @@ namespace Vic.Data
                     for (int i = 0; i < cols; i++)
                     {
                         string colName = result.Columns[i].ColumnName;
-                        dr[colName] = dataReader[colName];
+                        dr[colName] = dataReader[dataReader.GetOrdinal(colName)];
                     }
                     result.Rows.Add(dr);
                 }

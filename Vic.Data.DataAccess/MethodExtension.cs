@@ -9,7 +9,7 @@ using System.Linq.Expressions;
 
 namespace Vic.Data
 {
-    public static class ExtensionMethod
+    public static class MethodExtension
     {
         /// <summary>
         /// 返回一个DataTable的List&lt;TResult&gt;实例

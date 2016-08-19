@@ -126,14 +126,6 @@ namespace Vic.Data
         int ExecuteNonQuery(string sql);
 
         /// <summary>
-        /// 执行查询返回实体集合
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="sql"></param>
-        /// <returns></returns>
-        List<T> Query<T>(string sql) where T : class, new();
-
-        /// <summary>
         /// 执行无返回数据集的SQL，返回受影响的行数。 
         /// </summary>
         /// <param name="sql">SQL语句</param>
@@ -269,8 +261,9 @@ namespace Vic.Data
         /// <param name="sql">查询语句</param>
         /// <param name="pageSize">分页大小</param>
         /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="allRowsCount">总记录数</param>
         /// <returns>DataTable</returns>
-        DataTable QueryPage(string sql, int pageSize, int currPageIndex);
+        DataTable QueryPage(string sql, int pageSize, int currPageIndex, out int allRowsCount);
 
         /// <summary>
         /// 执行分页查询
@@ -278,9 +271,10 @@ namespace Vic.Data
         /// <param name="sql">查询语句</param>
         /// <param name="pageSize">分页大小</param>
         /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="allRowsCount">总记录数</param>
         /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
         /// <returns>DataTable</returns>
-        DataTable QueryPage(string sql, int pageSize, int currPageIndex, params DbParameter[] parameters);
+        DataTable QueryPage(string sql, int pageSize, int currPageIndex, out int allRowsCount, params DbParameter[] parameters);
 
         /// <summary>
         /// 执行分页查询
@@ -288,9 +282,10 @@ namespace Vic.Data
         /// <param name="sql">查询语句</param>
         /// <param name="pageSize">分页大小</param>
         /// <param name="currPageIndex">当前页索引</param>
+        /// <param name="allRowsCount">总记录数</param>
         /// <param name="parameters">SQL语句的 DbParameter 类型参数</param>
         /// <returns>DataTable</returns>
-        DataTable QueryPage(string sql, int pageSize, int currPageIndex, IList<DbParameter> parameters);
+        DataTable QueryPage(string sql, int pageSize, int currPageIndex, out int allRowsCount, IList<DbParameter> parameters);
 
         /// <summary>
         /// 执行存储过程
